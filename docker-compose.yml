@@ -1,0 +1,25 @@
+name: openhands-canvas
+
+services:
+  dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"    # Ingress proxy
+      - "3001:3001"    # Frontend dev server
+      - "18000:18000"  # Agent Server
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - agent-canvas-cache:/app/.openhands
+    environment:
+      - NODE_ENV=development
+      - VITE_FRONTEND_PORT=3001
+      - PROJECTS_PATH=/projects
+    working_dir: /app
+    command: npm run dev
+
+volumes:
+  agent-canvas-cache:

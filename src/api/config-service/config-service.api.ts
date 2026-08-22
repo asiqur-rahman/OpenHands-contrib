@@ -108,8 +108,11 @@ class ConfigService {
     const prefixedItems: LLMModel[] = provider
       ? (models ?? [])
           .filter((model) => model.startsWith(`${provider}/`))
-          .map((model) => model.slice(provider.length + 1))
-          .filter((name) => name.length > 0 && !verifiedNames.has(name))
+          .filter(
+            (name) =>
+              name.length > 0 &&
+              !verifiedNames.has(name.slice(provider.length + 1)),
+          )
           .map((name) => ({
             provider,
             name,

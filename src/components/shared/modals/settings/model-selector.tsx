@@ -107,10 +107,7 @@ export function ModelSelector({
   };
 
   const handleChangeModel = (model: string) => {
-    let fullModel = `${selectedProvider}/${model}`;
-    if (selectedProvider === "openai") {
-      fullModel = model;
-    }
+    const fullModel = `${selectedProvider}/${model}`;
     setLitellmId(fullModel);
     setSelectedModel(model);
     onChange?.(selectedProvider, model);

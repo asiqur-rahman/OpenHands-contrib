@@ -1,0 +1,12 @@
+name: openhands-canvas
+
+services:
+  app:
+    image: openhands-canvas:local
+    profiles: ["prod"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/openhands:/home/openhands/.openhands
+      - ./data/projects:/projects
+    restart: unless-stopped

@@ -1,0 +1,111 @@
+name: openhands-canvas
+services:
+  openhands-canvas:
+    cpu_shares: 90
+    command: []
+    container_name: openhands-canvas
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    environment:
+      - TZ=Asia/Dhaka
+    hostname: openhands-canvas
+    image: asiqurrahman/openhands-canvas:1.14.0
+    labels:
+      icon: https://assets.openhands.dev/logo-whitebackground.png
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /DATA/AppData/openhands-canvas/openhands
+        target: /home/openhands/.openhands
+        bind:
+          create_host_path: true
+      - type: bind
+        source: /DATA/AppData/openhands-canvas/projects
+        target: /projects
+        bind:
+          create_host_path: true
+    ports:
+      - target: 8000
+        published: "8000"
+        protocol: tcp
+    devices: []
+    cap_add: []
+    networks:
+      - openhands-canvas-network
+    privileged: false
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -qO-
+        - http://127.0.0.1:8000/health
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    x-casaos:
+      envs:
+        - container: TZ
+          description:
+            en_US: Timezone
+      volumes:
+        - container: /home/openhands/.openhands
+          description:
+            en_US: Settings, secrets, conversations, and automation database
+        - container: /projects
+          description:
+            en_US: Workspace directory the agent can read and edit
+      ports:
+        - container: "8000"
+          description:
+            en_US: Unified web dashboard, API, and WebSocket entry point
+      networks:
+        - container: openhands-canvas-network
+          description:
+            en_US: Isolated OpenHands Canvas bridge network
+
+networks:
+  openhands-canvas-network:
+    name: openhands-canvas-network
+    driver: bridge
+
+x-casaos:
+  architectures:
+    - amd64
+  author: Md. Asiqur Rahman Khan
+  category: Developer Tools
+  description:
+    en_US: Self-hosted developer control center for coding agents and automations.
+      Run OpenHands, Claude Code, Codex, Gemini, or any ACP-compatible agent, with
+      a web dashboard for conversations, terminal, files, browser, and automations.
+  developer: asiqur-rahman
+  hostname: ""
+  icon: https://assets.openhands.dev/logo-whitebackground.png
+  id: com.asiqurrahman.openhands-canvas
+  index: /canvas
+  is_uncontrolled: false
+  main: openhands-canvas
+  port_map: "8000"
+  scheme: http
+  store_app_id: openhands-canvas
+  tagline:
+    en_US: Self-hosted control center for coding agents
+  thumbnail: ""
+  title:
+    custom: ""
+    en_US: OpenHands Canvas
+  networks:
+    - container: openhands-canvas-network
+      description:
+        en_US: Isolated bridge network for the OpenHands Canvas container
+  tips:
+    before_install:
+      en_US: This image bundles the Agent Server, Automation backend, and frontend
+        behind one port. On first start it generates and persists a settings
+        encryption key under /home/openhands/.openhands — back that volume up.
+        Configure your LLM provider and API key from the web UI after first launch;
+        no credentials are baked into the image. Dashboard is at /canvas (e.g.
+        http://<host>:8000/canvas). Bump the image tag above to match whatever
+        version `make push` last published before reinstalling.
