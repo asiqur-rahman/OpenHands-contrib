@@ -40,6 +40,15 @@ pipeline {
     stage('Install') {
       agent any
       tools { nodejs 'node-22.12.0' }
+      // The Jenkins container itself is cgroup-limited to 2GB total
+      // (confirmed via /sys/fs/cgroup/memory.max = 2147483648 through the
+      // Script Console -- free -m / /proc/meminfo inside this container
+      // misleadingly report the HOST's 11.9GB, not this cgroup cap).
+      // npm ci's postinstall scripts spawn their own node subprocesses,
+      // which by default size their heap off whatever memory Node
+      // detects -- the host's 11.9GB, not the real 2GB ceiling -- so cap
+      // it explicitly here too, not just in the stages below.
+      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
       steps {
         sh 'npm ci'
       }
@@ -48,11 +57,12 @@ pipeline {
     stage('Lint') {
       agent any
       tools { nodejs 'node-22.12.0' }
-      // tsc on this project's full src/ OOMs under V8's default heap
-      // ceiling (~1GB) even though the agent has 6GB+ free -- verified via
-      // Jenkins' Script Console before assuming this was a real resource
-      // shortage. Raise it explicitly rather than let V8 guess.
-      environment { NODE_OPTIONS = '--max-old-space-size=4096' }
+      // Same 2GB container cap as Install above. The original OOM here
+      // was V8's own graceful heap-limit error, not a SIGKILL -- but
+      // raising this past what actually fits in the container (as the
+      // first attempt at 4096 did) just defers the same failure to
+      // wherever V8 next needs to grow past the real ceiling.
+      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
       steps {
         sh 'npm run lint'
       }
@@ -61,7 +71,7 @@ pipeline {
     stage('Test') {
       agent any
       tools { nodejs 'node-22.12.0' }
-      environment { NODE_OPTIONS = '--max-old-space-size=4096' }
+      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
       steps {
         sh 'npm test'
       }
@@ -70,7 +80,7 @@ pipeline {
     stage('Build') {
       agent any
       tools { nodejs 'node-22.12.0' }
-      environment { NODE_OPTIONS = '--max-old-space-size=4096' }
+      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
       steps {
         sh 'npm run build'
       }
