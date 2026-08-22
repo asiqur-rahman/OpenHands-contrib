@@ -57,12 +57,13 @@ pipeline {
     stage('Lint') {
       agent any
       tools { nodejs 'node-22.12.0' }
-      // Same 2GB container cap as Install above. The original OOM here
-      // was V8's own graceful heap-limit error, not a SIGKILL -- but
-      // raising this past what actually fits in the container (as the
-      // first attempt at 4096 did) just defers the same failure to
-      // wherever V8 next needs to grow past the real ceiling.
-      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
+      // Container raised to 4GB (was 2GB when Install's 1280 was chosen).
+      // Confirmed on the previous run: tsc hit exactly the 1280MB ceiling
+      // ("1268.9 -> 1311.3 MB") as a graceful V8 heap-limit error, not a
+      // container-level SIGKILL -- it genuinely needs more than 1280MB,
+      // just not 4096MB as the very first (pre-cgroup-check) attempt used.
+      // 3072 leaves ~1GB of the container's 4GB for Jenkins' own JVM + OS.
+      environment { NODE_OPTIONS = '--max-old-space-size=3072' }
       steps {
         sh 'npm run lint'
       }
@@ -71,7 +72,7 @@ pipeline {
     stage('Test') {
       agent any
       tools { nodejs 'node-22.12.0' }
-      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
+      environment { NODE_OPTIONS = '--max-old-space-size=3072' }
       steps {
         sh 'npm test'
       }
@@ -80,7 +81,7 @@ pipeline {
     stage('Build') {
       agent any
       tools { nodejs 'node-22.12.0' }
-      environment { NODE_OPTIONS = '--max-old-space-size=1280' }
+      environment { NODE_OPTIONS = '--max-old-space-size=3072' }
       steps {
         sh 'npm run build'
       }
