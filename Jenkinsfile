@@ -6,7 +6,8 @@
 // run locally before pushing, not in CI.
 // production branch only: an approval gate pauses the pipeline in the
 // Jenkins UI before anything is pushed to Docker Hub -- nothing publishes
-// without a human clicking Proceed.
+// without a human clicking Push within 15 minutes. Letting that window
+// pass (or clicking Abort) skips the push instead of failing the build.
 //
 // Requires on the Jenkins agent:
 //   - A NodeJS tool installation named node-22.12.0 (Manage Jenkins > Tools
@@ -106,23 +107,39 @@ pipeline {
         branch 'production'
       }
       steps {
-        // Pauses here until a human approves in the Jenkins UI -- lint,
-        // test, and build above already ran unattended; only the publish
-        // step waits on a person. A single input() parameter returns its
-        // raw value directly (not a map) -- must capture it explicitly or
+        // Pauses here until a human approves in the Jenkins UI -- lint
+        // and build above already ran unattended; only the publish step
+        // waits on a person. A single input() parameter returns its raw
+        // value directly (not a map) -- must capture it explicitly or
         // RELEASE_VERSION would be empty in the next stage.
+        //
+        // Wrapped in its own timeout so silence has a safe default: no
+        // approval within 15 minutes means "don't push", not "wait
+        // forever" (the input step has no deadline of its own) and not
+        // "fail the build" (the pipeline's own 45-minute timeout would
+        // otherwise eventually abort the whole run). Catching the
+        // interruption here and leaving RELEASE_VERSION unset lets the
+        // next stage's `when` skip the push cleanly instead.
         script {
-          env.RELEASE_VERSION = input(
-            message: "Push asiqurrahman/openhands-canvas to Docker Hub as :production + :${env.SUGGESTED_VERSION}?",
-            ok: 'Push',
-            parameters: [
-              string(
-                name: 'RELEASE_VERSION',
-                defaultValue: env.SUGGESTED_VERSION,
-                description: 'Version tag to push (semver x.y.z). Leave as suggested unless you need a specific bump.'
+          try {
+            timeout(time: 15, unit: 'MINUTES') {
+              env.RELEASE_VERSION = input(
+                message: "Push asiqurrahman/openhands-canvas to Docker Hub as :production + :${env.SUGGESTED_VERSION}?",
+                ok: 'Push',
+                parameters: [
+                  string(
+                    name: 'RELEASE_VERSION',
+                    defaultValue: env.SUGGESTED_VERSION,
+                    description: 'Version tag to push (semver x.y.z). Leave as suggested unless you need a specific bump.'
+                  )
+                ]
               )
-            ]
-          )
+            }
+          } catch (err) {
+            env.RELEASE_VERSION = null
+            currentBuild.result = 'ABORTED'
+            echo 'No approval within 15 minutes (or approval was declined) -- skipping the Docker Hub push.'
+          }
         }
       }
     }
@@ -133,7 +150,10 @@ pipeline {
       // config/defaults.json.
       tools { nodejs 'node-22.12.0' }
       when {
-        branch 'production'
+        allOf {
+          branch 'production'
+          expression { return env.RELEASE_VERSION != null }
+        }
       }
       steps {
         withCredentials([usernamePassword(

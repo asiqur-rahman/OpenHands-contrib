@@ -48,7 +48,8 @@ Every push to any branch: install, lint, build — fully automatic, no approval 
 Push to `production` specifically, additionally:
 1. Suggests the next version (reads Docker Hub's existing tags, bumps the patch — same logic as `make push`)
 2. **Pauses and waits for a human to click "Push" in the Jenkins UI**, showing the suggested version (editable) before anything happens
-3. Only after approval: builds fresh and pushes `asiqurrahman/openhands-canvas:production` + `:VERSION` to Docker Hub
+3. If nobody clicks "Push" (or clicks "Abort") within **15 minutes**, the push is skipped and the build ends as `ABORTED` — it does not fail, and it does not push
+4. Only after approval within that window: builds fresh and pushes `asiqurrahman/openhands-canvas:production` + `:VERSION` to Docker Hub
 
 ## Honesty check
 
