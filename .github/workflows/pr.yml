@@ -13,6 +13,7 @@ on:
     # synchronize: re-run on each push so the check stays green on release-please's
     # force-pushed release PR.
     types: [opened, edited, reopened, synchronize]
+    branches: [production]
 
 jobs:
   pr-title:

@@ -13,6 +13,7 @@ on:
   workflow_run:
     workflows: ["Docker"]
     types: [completed]
+    branches: [production]
 
 jobs:
   # "Docker" runs on branch pushes, PRs and tag pushes, but only a release-please

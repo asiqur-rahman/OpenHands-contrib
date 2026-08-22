@@ -7,11 +7,12 @@ name: CI Script Tests
 
 on:
     pull_request:
+        branches: [production]
         paths:
             - ".github/scripts/**"
             - ".github/workflows/ci-script-tests.yml"
     push:
-        branches: [main]
+        branches: [production]
         paths:
             - ".github/scripts/**"
             - ".github/workflows/ci-script-tests.yml"

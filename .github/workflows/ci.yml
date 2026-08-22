@@ -2,11 +2,11 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - production
   push:
     branches:
-      - main
-      - "rel-*"
-      - "release/**"
+      - production
   workflow_dispatch:
     inputs:
       pr_number:

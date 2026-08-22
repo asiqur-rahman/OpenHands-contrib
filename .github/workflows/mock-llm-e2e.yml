@@ -3,6 +3,7 @@ name: Mock-LLM E2E Tests
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    branches: [production]
   workflow_dispatch:
 
 concurrency:

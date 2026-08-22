@@ -3,11 +3,11 @@ name: Docker
 
 on:
   push:
-    branches: [main]
+    branches: [production]
     tags:
       - "v*"
   pull_request:
-    branches: [main]
+    branches: [production]
   workflow_dispatch:
     inputs:
       agent_server_image:

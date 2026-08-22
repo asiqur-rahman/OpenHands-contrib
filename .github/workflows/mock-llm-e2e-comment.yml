@@ -15,6 +15,7 @@ on:
   workflow_run:
     workflows: ["Mock-LLM E2E Tests"]
     types: [completed]
+    branches: [production]
 
 permissions:
   contents: read
