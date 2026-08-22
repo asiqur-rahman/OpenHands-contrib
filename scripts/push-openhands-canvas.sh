@@ -268,6 +268,14 @@ case "${1:-}" in
   --self-test)
     self_test
     ;;
+  --suggest-version)
+    # Non-interactive: print the next-patch suggestion to stdout and exit,
+    # no docker/login required. For CI callers (e.g. Jenkins) that need the
+    # version up front without a TTY -- feed it back in as CLI_VERSION to
+    # skip the prompt: CLI_VERSION=$(... --suggest-version) bash "$0"
+    last="$(list_hub_semver | sort -V | tail -1)"
+    suggest_next "$last"
+    ;;
   *)
     preflight
     push_image "$(pick_version)"
