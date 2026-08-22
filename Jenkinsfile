@@ -2,7 +2,8 @@
 // (VPS). Requires a Multibranch Pipeline job pointed at this repo so
 // `branch 'production'`-gated stages only run for that branch.
 //
-// Every push: checkout, install, lint, test, build (fully automatic).
+// Every push: checkout, install, lint, build (fully automatic). Vitest is
+// run locally before pushing, not in CI.
 // production branch only: an approval gate pauses the pipeline in the
 // Jenkins UI before anything is pushed to Docker Hub -- nothing publishes
 // without a human clicking Proceed.
@@ -66,15 +67,6 @@ pipeline {
       environment { NODE_OPTIONS = '--max-old-space-size=3072' }
       steps {
         sh 'npm run lint'
-      }
-    }
-
-    stage('Test') {
-      agent any
-      tools { nodejs 'node-22.12.0' }
-      environment { NODE_OPTIONS = '--max-old-space-size=3072' }
-      steps {
-        sh 'npm test'
       }
     }
 

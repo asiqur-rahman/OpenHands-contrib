@@ -43,7 +43,7 @@ Either:
 
 ## What the pipeline actually does
 
-Every push to any branch: install, lint, test, build — fully automatic, no approval needed.
+Every push to any branch: install, lint, build — fully automatic, no approval needed. `npm test` is expected to be run locally before pushing to `production`, not in CI.
 
 Push to `production` specifically, additionally:
 1. Suggests the next version (reads Docker Hub's existing tags, bumps the patch — same logic as `make push`)
