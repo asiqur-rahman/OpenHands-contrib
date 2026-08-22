@@ -48,6 +48,11 @@ pipeline {
     stage('Lint') {
       agent any
       tools { nodejs 'node-22.12.0' }
+      // tsc on this project's full src/ OOMs under V8's default heap
+      // ceiling (~1GB) even though the agent has 6GB+ free -- verified via
+      // Jenkins' Script Console before assuming this was a real resource
+      // shortage. Raise it explicitly rather than let V8 guess.
+      environment { NODE_OPTIONS = '--max-old-space-size=4096' }
       steps {
         sh 'npm run lint'
       }
@@ -56,6 +61,7 @@ pipeline {
     stage('Test') {
       agent any
       tools { nodejs 'node-22.12.0' }
+      environment { NODE_OPTIONS = '--max-old-space-size=4096' }
       steps {
         sh 'npm test'
       }
@@ -64,6 +70,7 @@ pipeline {
     stage('Build') {
       agent any
       tools { nodejs 'node-22.12.0' }
+      environment { NODE_OPTIONS = '--max-old-space-size=4096' }
       steps {
         sh 'npm run build'
       }
