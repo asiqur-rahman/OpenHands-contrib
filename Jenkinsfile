@@ -8,7 +8,12 @@
 // without a human clicking Proceed.
 //
 // Requires on the Jenkins agent:
-//   - Node.js (matching package.json's engines.node, >=22.12.0) on PATH
+//   - A NodeJS tool installation named node-22.12.0 (Manage Jenkins > Tools
+//     > NodeJS installations), matching package.json's engines.node. Every
+//     stage below declares its own `tools { nodejs 'node-22.12.0' }` --
+//     `agent any` per stage means PATH changes from `tools` don't persist
+//     across stages even on a single-agent Jenkins, so it can't be declared
+//     once at the pipeline level here.
 //   - Docker CLI + buildx, with the Jenkins user able to reach the daemon
 //   - A "Username with password" credential named dockerhub-credentials
 //     (Docker Hub username + a Personal Access Token, not your account
@@ -34,6 +39,7 @@ pipeline {
   stages {
     stage('Install') {
       agent any
+      tools { nodejs 'node-22.12.0' }
       steps {
         sh 'npm ci'
       }
@@ -41,6 +47,7 @@ pipeline {
 
     stage('Lint') {
       agent any
+      tools { nodejs 'node-22.12.0' }
       steps {
         sh 'npm run lint'
       }
@@ -48,6 +55,7 @@ pipeline {
 
     stage('Test') {
       agent any
+      tools { nodejs 'node-22.12.0' }
       steps {
         sh 'npm test'
       }
@@ -55,6 +63,7 @@ pipeline {
 
     stage('Build') {
       agent any
+      tools { nodejs 'node-22.12.0' }
       steps {
         sh 'npm run build'
       }
@@ -62,6 +71,10 @@ pipeline {
 
     stage('Suggest version') {
       agent any
+      // scripts/push-openhands-canvas.sh --suggest-version falls back to
+      // `node -e ...` against config/defaults.json when Docker Hub has no
+      // semver tags yet, so this stage needs Node on PATH too.
+      tools { nodejs 'node-22.12.0' }
       when {
         branch 'production'
       }
@@ -106,6 +119,9 @@ pipeline {
 
     stage('Push to Docker Hub') {
       agent any
+      // read_build_args() inside the push script calls `node -e` to read
+      // config/defaults.json.
+      tools { nodejs 'node-22.12.0' }
       when {
         branch 'production'
       }
