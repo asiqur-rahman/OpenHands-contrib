@@ -11,7 +11,7 @@ services:
     environment:
       - TZ=Asia/Dhaka
     hostname: openhands-canvas
-    image: asiqurrahman/openhands-canvas:1.14.0
+    image: asiqurrahman/openhands-canvas:production
     labels:
       icon: https://assets.openhands.dev/logo-whitebackground.png
     restart: unless-stopped
@@ -107,5 +107,7 @@ x-casaos:
         encryption key under /home/openhands/.openhands — back that volume up.
         Configure your LLM provider and API key from the web UI after first launch;
         no credentials are baked into the image. Dashboard is at /canvas (e.g.
-        http://<host>:8000/canvas). Bump the image tag above to match whatever
-        version `make push` last published before reinstalling.
+        http://<host>:8000/canvas). The :production tag always points at the
+        latest build make push published — pull again and recreate the
+        container to update, no manifest edit needed. Pin a specific :X.Y.Z
+        tag instead if you want to roll back to a known-good build.

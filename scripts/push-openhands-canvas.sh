@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Push asiqurrahman/openhands-canvas :latest + :VERSION to Docker Hub.
+# Push asiqurrahman/openhands-canvas :production + :VERSION to Docker Hub.
+# :production is the rolling tag for this fork's current build (no :latest --
+# this deliberately diverges from official OpenHands, so "latest upstream
+# release" isn't the right name for what gets pushed here).
 # Invoked by: make push   (or make push-check for a dry-run preflight)
 #
 # Version is never hardcoded. In a console, make push always prompts,
@@ -103,7 +106,7 @@ pick_version() {
 
   # Always ask in a real console (read the controlling TTY — works under make).
   if [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ]; then
-    info "Enter the version to tag & push (immutable snapshot alongside :latest)."
+    info "Enter the version to tag & push (immutable snapshot alongside :production)."
     printf "Version to tag & push [%s]: " "$suggest" >/dev/tty
     input=""
     # Do not let a failed read abort the script (set -e).
@@ -185,7 +188,7 @@ build_and_push() {
     --build-arg "AGENT_CANVAS_VERSION=${version}" \
     --build-arg "OPENHANDS_BUILD_GIT_SHA=${git_sha}" \
     --build-arg "OPENHANDS_BUILD_GIT_REF=${git_ref}" \
-    -t "${IMAGE}:latest" -t "${IMAGE}:${version}" \
+    -t "${IMAGE}:production" -t "${IMAGE}:${version}" \
     -f docker/Dockerfile \
     --push \
     . \
@@ -211,11 +214,11 @@ push_image() {
   build_and_push "$version"
 
   info "Verifying pushed manifest lists every requested platform..."
-  verify_platforms latest
+  verify_platforms production
   verify_platforms "$version"
 
-  info "Pushed ${IMAGE}:latest and ${IMAGE}:${version} (${PLATFORMS})."
-  info "On the target host: docker run -p 8000:8000 -v ~/.openhands:/home/openhands/.openhands -v ~/projects:/projects ${IMAGE}:${version}"
+  info "Pushed ${IMAGE}:production and ${IMAGE}:${version} (${PLATFORMS})."
+  info "On the target host: docker run -p 8000:8000 -v ~/.openhands:/home/openhands/.openhands -v ~/projects:/projects ${IMAGE}:production"
 }
 
 self_test() {
