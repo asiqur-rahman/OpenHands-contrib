@@ -27,8 +27,8 @@ describe("useSearchProviders", () => {
       ...Array.from({ length: 47 }, (_, i) => `zprovider_${i}`),
     ];
     server.use(
-      http.get("/api/llm/providers", () => HttpResponse.json({ providers })),
-      http.get("/api/llm/models/verified", () =>
+      http.get("*/api/llm/providers", () => HttpResponse.json({ providers })),
+      http.get("*/api/llm/models/verified", () =>
         HttpResponse.json({ models: { openhands: ["claude-opus-4-7"] } }),
       ),
     );
