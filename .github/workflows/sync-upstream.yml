@@ -1,0 +1,125 @@
+name: Sync upstream
+
+# Daily check for a new upstream OpenHands/OpenHands release. If package.json's
+# version is already at (or somehow ahead of) upstream's latest release tag,
+# every step below is skipped and the run is a fast no-op.
+#
+# On a genuine new tag: fetch it, merge into production, and only push if the
+# merge is conflict-free AND lint + the full test suite both pass -- exactly
+# the same bar applied manually for the v1.15.0 sync. Any conflict or
+# lint/test failure aborts the merge, pushes nothing, and opens an issue
+# instead so it doesn't fail silently. A clean push still lands behind
+# Jenkins' own 15-minute manual approval gate before anything reaches Docker
+# Hub -- this workflow only ever updates the production branch itself.
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily, off-peak UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out production
+        uses: actions/checkout@v7
+        with:
+          ref: production
+          fetch-depth: 0
+
+      - name: Compare current version against upstream's latest release
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(node -p "require('./package.json').version")"
+          latest="$(gh api repos/OpenHands/OpenHands/releases/latest --jq .tag_name | sed 's/^v//')"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$current" = "$latest" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "### Upstream sync check" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Current (this fork): \`$current\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Latest (upstream release): \`$latest\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fetch upstream tag
+        if: steps.versions.outputs.up_to_date == 'false'
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/OpenHands/OpenHands.git
+          git fetch upstream "refs/tags/v${{ steps.versions.outputs.latest }}:refs/tags/v${{ steps.versions.outputs.latest }}" --depth=300
+
+      - name: Merge upstream tag
+        if: steps.versions.outputs.up_to_date == 'false'
+        id: merge
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git merge "v${{ steps.versions.outputs.latest }}" --no-ff -m "merge: sync fork with upstream OpenHands/OpenHands v${{ steps.versions.outputs.latest }}
+
+Automated via the Sync upstream workflow."; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        if: steps.versions.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24.15"
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.versions.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        run: npm ci
+
+      - name: Lint
+        if: steps.versions.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        run: npm run lint
+
+      - name: Test
+        if: steps.versions.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        run: npm test
+
+      - name: Push merge to production
+        if: steps.versions.outputs.up_to_date == 'false' && steps.merge.outputs.conflict == 'false'
+        run: git push origin production
+
+      - name: Open an issue if the sync couldn't complete
+        if: >-
+          always() &&
+          steps.versions.outputs.up_to_date == 'false' &&
+          (steps.merge.outputs.conflict == 'true' || failure())
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ "${{ steps.merge.outputs.conflict }}" = "true" ]; then
+            reason="Merging \`v${{ steps.versions.outputs.latest }}\` produced conflicts that need manual resolution."
+          else
+            reason="The merge applied cleanly, but lint or the test suite failed against the merged code."
+          fi
+          gh issue create \
+            --title "Upstream sync to v${{ steps.versions.outputs.latest }} needs manual attention" \
+            --body "$reason
+
+production was **not** touched -- nothing was pushed.
+
+Run: $run_url"
