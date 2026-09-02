@@ -69,9 +69,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git merge "v${{ steps.versions.outputs.latest }}" --no-ff -m "merge: sync fork with upstream OpenHands/OpenHands v${{ steps.versions.outputs.latest }}
-
-Automated via the Sync upstream workflow."; then
+          if git merge "v${{ steps.versions.outputs.latest }}" --no-ff -m "merge: sync fork with upstream OpenHands/OpenHands v${{ steps.versions.outputs.latest }} (automated)"; then
             echo "conflict=false" >> "$GITHUB_OUTPUT"
           else
             git merge --abort
@@ -116,10 +114,7 @@ Automated via the Sync upstream workflow."; then
           else
             reason="The merge applied cleanly, but lint or the test suite failed against the merged code."
           fi
+          body="$reason"$'\n\n'"production was **not** touched -- nothing was pushed."$'\n\n'"Run: $run_url"
           gh issue create \
             --title "Upstream sync to v${{ steps.versions.outputs.latest }} needs manual attention" \
-            --body "$reason
-
-production was **not** touched -- nothing was pushed.
-
-Run: $run_url"
+            --body "$body"
