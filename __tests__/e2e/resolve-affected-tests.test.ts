@@ -19,6 +19,7 @@ const dockerWorkflowPath = path.join(
   repoRoot,
   ".github/workflows/mock-llm-docker-e2e.yml",
 );
+const ciWorkflowPath = path.join(repoRoot, ".github/workflows/ci.yml");
 
 function resolveAffectedTests(files: string[]) {
   const output = execFileSync(
@@ -79,25 +80,46 @@ describe("mock-LLM E2E affected test resolver", () => {
     expect(resolveAffectedTests([file])).toEqual(["__ALL__"]);
   });
 
-  it("keeps resolver failures from becoming selective test paths", () => {
+  // This fork triggers mock-llm-e2e.yml on every PR commit (branches:
+  // [production]) plus manual dispatch, gated by a detect-pr-changes job --
+  // not on a push-to-main trigger like upstream, since workflow_run doesn't
+  // fire for a new workflow file until it's already on the default branch.
+  it("runs browser mock E2E on production PRs or manual dispatch", () => {
     const workflow = readFileSync(workflowPath, "utf-8");
 
-    expect(workflow).toContain("if ! RESULT=$(node");
-    expect(workflow).toContain("Affected-test resolver failed");
-    expect(workflow).not.toContain("2>&1) || true");
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("branches: [production]");
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("detect-pr-changes:");
+    expect(workflow).toContain('PW_CMD="npm run test:e2e:mock-llm"');
   });
 
-  it("keeps E2E workflows from path-skipping required PR checks", () => {
-    const workflow = readFileSync(workflowPath, "utf-8");
+  // Same fork-specific reasoning as above, plus workflow_run to validate the
+  // image once it's actually published from production.
+  it("runs Docker mock E2E after successful production builds, on PRs, or manual dispatch", () => {
     const dockerWorkflow = readFileSync(dockerWorkflowPath, "utf-8");
 
-    expect(workflow).not.toContain("\n    paths:\n");
-    expect(workflow).toContain("detect-pr-changes:");
-    expect(workflow).toContain("needs.detect-pr-changes.outputs.should_run");
-    expect(dockerWorkflow).not.toContain("\n    paths:\n");
+    expect(dockerWorkflow).toContain('workflows: ["Docker"]');
+    expect(dockerWorkflow).toContain("branches: [production]");
+    expect(dockerWorkflow).toContain("workflow_dispatch:");
+    expect(dockerWorkflow).toContain("pull_request:");
     expect(dockerWorkflow).toContain("detect-pr-changes:");
     expect(dockerWorkflow).toContain(
-      "needs.detect-pr-changes.outputs.should_run",
+      "github.event.workflow_run.conclusion == 'success'",
+    );
+  });
+
+  it("runs live LLM E2E on production or by manual PR dispatch", () => {
+    const ciWorkflow = readFileSync(ciWorkflowPath, "utf-8");
+    const liveJob = ciWorkflow.slice(ciWorkflow.indexOf("  live-e2e:"));
+
+    expect(liveJob).toContain("github.event_name == 'workflow_dispatch'");
+    expect(liveJob).toContain(
+      "github.event_name == 'push' && github.ref == 'refs/heads/production'",
+    );
+    expect(liveJob).not.toContain("github.event_name == 'pull_request'");
+    expect(liveJob).toContain(
+      "LIVE_E2E_PR_NUMBER: ${{ inputs.pr_number || '' }}",
     );
   });
 });
